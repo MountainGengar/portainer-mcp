@@ -186,6 +186,12 @@ When using read-only mode:
 - The Docker proxy requests tool is not loaded
 - The Kubernetes proxy requests tool is not loaded
 
+## Stack Environment Variables
+
+For security reasons, MCP does not expose stack environment variable values.
+You can list variable names with `getStackEnvNames`, and use `updateStack`
+with `envOverrides` to set or override specific values while keeping the rest.
+
 # Portainer Version Support
 
 This tool is pinned to support a specific version of Portainer. The application will validate the Portainer server version at startup and fail if it doesn't match the required version.
@@ -231,8 +237,9 @@ The following table lists the currently (latest version) supported operations th
 | **Stacks (Edge Stacks)** | | | |
 | | ListStacks | List all available stacks | 0.1.0 |
 | | GetStackFile | Get the compose file for a specific stack | 0.1.0 |
+| | GetStackEnvNames | List stack environment variable names (values not returned) | 0.7.0 |
 | | CreateStack | Create a new Docker stack | 0.1.0 |
-| | UpdateStack | Update an existing Docker stack | 0.1.0 |
+| | UpdateStack | Update an existing Docker stack (supports envOverrides) | 0.1.0 |
 | **Tags** | | | |
 | | ListEnvironmentTags | List all available environment tags | 0.1.0 |
 | | CreateEnvironmentTag | Create a new environment tag | 0.1.0 |

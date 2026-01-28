@@ -15,6 +15,7 @@ const (
 	ToolListEnvironments                   = "listEnvironments"
 	ToolUpdateEnvironment                  = "updateEnvironment"
 	ToolGetStackFile                       = "getStackFile"
+	ToolGetStackEnvNames                   = "getStackEnvNames"
 	ToolCreateStack                        = "createStack"
 	ToolListStacks                         = "listStacks"
 	ToolUpdateStack                        = "updateStack"

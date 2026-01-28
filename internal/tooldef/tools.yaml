@@ -391,6 +391,19 @@ tools:
       destructiveHint: false
       idempotentHint: true
       openWorldHint: false
+  - name: getStackEnvNames
+    description: List environment variable names for a specific stack ID
+    parameters:
+      - name: id
+        description: The ID of the stack to get environment variable names for
+        type: number
+        required: true
+    annotations:
+      title: Get Stack Env Names
+      readOnlyHint: true
+      destructiveHint: false
+      idempotentHint: true
+      openWorldHint: false
   - name: createStack
     description: Create a new stack
     parameters:
@@ -444,6 +457,22 @@ tools:
         required: true
         items:
           type: number
+      - name: envOverrides
+        description: >-
+          Optional environment variable overrides. Each entry updates or adds a
+          stack environment variable by name. Existing variables not listed are
+          preserved.
+        type: array
+        required: false
+        items:
+          type: object
+          properties:
+            name:
+              description: The environment variable name to set or override
+              type: string
+            value:
+              description: The value to set for the environment variable
+              type: string
     annotations:
       title: Update Stack
       readOnlyHint: false

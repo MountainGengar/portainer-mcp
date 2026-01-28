@@ -117,6 +117,33 @@ func (c *PortainerClient) GetStackFile(id int) (string, error) {
 	return edgeFile, nil
 }
 
+// GetStackEnvNames retrieves the environment variable names for a regular stack.
+func (c *PortainerClient) GetStackEnvNames(id int) ([]string, error) {
+	if c.serverURL == "" || c.token == "" {
+		return nil, fmt.Errorf("stack env names require server url and token")
+	}
+
+	_, env, err := c.getRegularStackDetailsHTTP(id)
+	if err != nil {
+		if shouldFallbackToEdge(err) {
+			return nil, fmt.Errorf("stack env names are not available for edge stacks")
+		}
+		return nil, fmt.Errorf("failed to get stack details: %w", err)
+	}
+
+	names := make([]string, 0, len(env))
+	seen := map[string]bool{}
+	for _, entry := range env {
+		if entry.Name == "" || seen[entry.Name] {
+			continue
+		}
+		seen[entry.Name] = true
+		names = append(names, entry.Name)
+	}
+
+	return names, nil
+}
+
 func (c *PortainerClient) getRegularStackFileHTTP(id int) (string, error) {
 	serverURL := c.serverURL
 	if !strings.HasPrefix(serverURL, "http://") && !strings.HasPrefix(serverURL, "https://") {
@@ -214,6 +241,53 @@ func hasEnvValues(env []models.StackEnvVar) bool {
 		}
 	}
 	return false
+}
+
+func mergeEnvOverrides(existing []models.StackEnvVar, overrides []models.StackEnvVar) []models.StackEnvVar {
+	if len(overrides) == 0 {
+		return existing
+	}
+
+	overrideValues := map[string]string{}
+	overrideOrder := make([]string, 0, len(overrides))
+	for _, override := range overrides {
+		if override.Name == "" {
+			continue
+		}
+		if _, exists := overrideValues[override.Name]; !exists {
+			overrideOrder = append(overrideOrder, override.Name)
+		}
+		overrideValues[override.Name] = override.Value
+	}
+
+	if len(overrideValues) == 0 {
+		return existing
+	}
+
+	merged := make([]models.StackEnvVar, 0, len(existing)+len(overrideValues))
+	seen := map[string]bool{}
+	for _, current := range existing {
+		if current.Name == "" {
+			continue
+		}
+		if overrideValue, ok := overrideValues[current.Name]; ok {
+			merged = append(merged, models.StackEnvVar{Name: current.Name, Value: overrideValue})
+			seen[current.Name] = true
+			continue
+		}
+		merged = append(merged, current)
+		seen[current.Name] = true
+	}
+
+	for _, name := range overrideOrder {
+		if seen[name] {
+			continue
+		}
+		merged = append(merged, models.StackEnvVar{Name: name, Value: overrideValues[name]})
+		seen[name] = true
+	}
+
+	return merged
 }
 
 func (c *PortainerClient) getRegularStackDetailsHTTP(id int) (int, []models.StackEnvVar, error) {
@@ -368,15 +442,19 @@ func (c *PortainerClient) CreateStack(name, file string, environmentGroupIds []i
 //
 // Returns:
 //   - An error if the operation fails
-func (c *PortainerClient) UpdateStack(id int, file string, environmentGroupIds []int) error {
+func (c *PortainerClient) UpdateStack(id int, file string, environmentGroupIds []int, envOverrides []models.StackEnvVar) error {
 	if c.serverURL != "" && c.token != "" {
 		endpointId, env, err := c.getRegularStackDetailsHTTP(id)
 		if err == nil {
-			err = c.updateRegularStackHTTP(id, endpointId, file, env)
+			mergedEnv := mergeEnvOverrides(env, envOverrides)
+			err = c.updateRegularStackHTTP(id, endpointId, file, mergedEnv)
 			if err == nil {
 				return nil
 			}
 			if shouldFallbackToEdge(err) {
+				if len(envOverrides) > 0 {
+					return fmt.Errorf("stack env overrides are not supported for edge stacks")
+				}
 				edgeErr := c.cli.UpdateEdgeStack(int64(id), file, utils.IntToInt64Slice(environmentGroupIds))
 				if edgeErr != nil {
 					return fmt.Errorf("failed to update regular stack: %w (edge stack also failed: %v)", err, edgeErr)
@@ -386,6 +464,9 @@ func (c *PortainerClient) UpdateStack(id int, file string, environmentGroupIds [
 			return fmt.Errorf("failed to update regular stack: %w", err)
 		}
 		if shouldFallbackToEdge(err) {
+			if len(envOverrides) > 0 {
+				return fmt.Errorf("stack env overrides are not supported for edge stacks")
+			}
 			edgeErr := c.cli.UpdateEdgeStack(int64(id), file, utils.IntToInt64Slice(environmentGroupIds))
 			if edgeErr != nil {
 				return fmt.Errorf("failed to get regular stack details: %w (edge stack also failed: %v)", err, edgeErr)
@@ -393,6 +474,10 @@ func (c *PortainerClient) UpdateStack(id int, file string, environmentGroupIds [
 			return nil
 		}
 		return fmt.Errorf("failed to get regular stack details: %w", err)
+	}
+
+	if len(envOverrides) > 0 {
+		return fmt.Errorf("stack env overrides require a Portainer server url and token")
 	}
 
 	err := c.cli.UpdateEdgeStack(int64(id), file, utils.IntToInt64Slice(environmentGroupIds))

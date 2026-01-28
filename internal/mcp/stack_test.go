@@ -163,6 +163,97 @@ func TestHandleGetStackFile(t *testing.T) {
 	}
 }
 
+func TestHandleGetStackEnvNames(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputID     int
+		mockNames   []string
+		mockError   error
+		expectError bool
+		setupParams func(request *mcp.CallToolRequest)
+	}{
+		{
+			name:        "successful env names retrieval",
+			inputID:     1,
+			mockNames:   []string{"DYNU_TOKEN", "TELEGRAM_TOKEN"},
+			mockError:   nil,
+			expectError: false,
+			setupParams: func(request *mcp.CallToolRequest) {
+				request.Params.Arguments = map[string]any{
+					"id": float64(1),
+				}
+			},
+		},
+		{
+			name:        "api error",
+			inputID:     1,
+			mockNames:   nil,
+			mockError:   fmt.Errorf("api error"),
+			expectError: true,
+			setupParams: func(request *mcp.CallToolRequest) {
+				request.Params.Arguments = map[string]any{
+					"id": float64(1),
+				}
+			},
+		},
+		{
+			name:        "missing id parameter",
+			inputID:     0,
+			mockNames:   nil,
+			mockError:   nil,
+			expectError: true,
+			setupParams: func(request *mcp.CallToolRequest) {
+				// No parameters
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := &MockPortainerClient{}
+			if !tt.expectError || tt.mockError != nil {
+				mockClient.On("GetStackEnvNames", tt.inputID).Return(tt.mockNames, tt.mockError)
+			}
+
+			server := &PortainerMCPServer{
+				cli: mockClient,
+			}
+
+			request := CreateMCPRequest(map[string]any{})
+			tt.setupParams(&request)
+
+			handler := server.HandleGetStackEnvNames()
+			result, err := handler(context.Background(), request)
+
+			if tt.expectError {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.True(t, result.IsError, "result.IsError should be true for expected errors")
+				assert.Len(t, result.Content, 1)
+				textContent, ok := result.Content[0].(mcp.TextContent)
+				assert.True(t, ok, "Result content should be mcp.TextContent for errors")
+				if tt.mockError != nil {
+					assert.Contains(t, textContent.Text, tt.mockError.Error())
+				} else {
+					assert.NotEmpty(t, textContent.Text, "Error message should not be empty for parameter errors")
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, result.Content, 1)
+				textContent, ok := result.Content[0].(mcp.TextContent)
+				assert.True(t, ok)
+
+				var names []string
+				err = json.Unmarshal([]byte(textContent.Text), &names)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.mockNames, names)
+			}
+
+			mockClient.AssertExpectations(t)
+		})
+	}
+}
+
 func TestHandleCreateStack(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -301,6 +392,7 @@ func TestHandleUpdateStack(t *testing.T) {
 		inputID          int
 		inputFile        string
 		inputEnvGroupIDs []int
+		inputOverrides   []models.StackEnvVar
 		mockError        error
 		expectError      bool
 		setupParams      func(request *mcp.CallToolRequest)
@@ -310,6 +402,7 @@ func TestHandleUpdateStack(t *testing.T) {
 			inputID:          1,
 			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
 			inputEnvGroupIDs: []int{1, 2},
+			inputOverrides:   []models.StackEnvVar{},
 			mockError:        nil,
 			expectError:      false,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -321,10 +414,33 @@ func TestHandleUpdateStack(t *testing.T) {
 			},
 		},
 		{
+			name:             "successful stack update with env overrides",
+			inputID:          1,
+			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
+			inputEnvGroupIDs: []int{1, 2},
+			inputOverrides:   []models.StackEnvVar{{Name: "TEST_VAR", Value: "value"}},
+			mockError:        nil,
+			expectError:      false,
+			setupParams: func(request *mcp.CallToolRequest) {
+				request.Params.Arguments = map[string]any{
+					"id":                  float64(1),
+					"file":                "version: '3'\nservices:\n  web:\n    image: nginx",
+					"environmentGroupIds": []any{float64(1), float64(2)},
+					"envOverrides": []any{
+						map[string]any{
+							"name":  "TEST_VAR",
+							"value": "value",
+						},
+					},
+				}
+			},
+		},
+		{
 			name:             "api error",
 			inputID:          1,
 			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
 			inputEnvGroupIDs: []int{1, 2},
+			inputOverrides:   []models.StackEnvVar{},
 			mockError:        fmt.Errorf("api error"),
 			expectError:      true,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -340,6 +456,7 @@ func TestHandleUpdateStack(t *testing.T) {
 			inputID:          0,
 			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
 			inputEnvGroupIDs: []int{1, 2},
+			inputOverrides:   []models.StackEnvVar{},
 			mockError:        nil,
 			expectError:      true,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -354,6 +471,7 @@ func TestHandleUpdateStack(t *testing.T) {
 			inputID:          1,
 			inputFile:        "",
 			inputEnvGroupIDs: []int{1, 2},
+			inputOverrides:   []models.StackEnvVar{},
 			mockError:        nil,
 			expectError:      true,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -368,6 +486,7 @@ func TestHandleUpdateStack(t *testing.T) {
 			inputID:          1,
 			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
 			inputEnvGroupIDs: nil,
+			inputOverrides:   []models.StackEnvVar{},
 			mockError:        nil,
 			expectError:      true,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -383,7 +502,7 @@ func TestHandleUpdateStack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := &MockPortainerClient{}
 			if !tt.expectError || tt.mockError != nil {
-				mockClient.On("UpdateStack", tt.inputID, tt.inputFile, tt.inputEnvGroupIDs).Return(tt.mockError)
+				mockClient.On("UpdateStack", tt.inputID, tt.inputFile, tt.inputEnvGroupIDs, tt.inputOverrides).Return(tt.mockError)
 			}
 
 			server := &PortainerMCPServer{

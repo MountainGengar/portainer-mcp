@@ -169,13 +169,21 @@ func (m *MockPortainerClient) GetStackFile(id int) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockPortainerClient) GetStackEnvNames(id int) ([]string, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 func (m *MockPortainerClient) CreateStack(name string, file string, environmentGroupIds []int) (int, error) {
 	args := m.Called(name, file, environmentGroupIds)
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockPortainerClient) UpdateStack(id int, file string, environmentGroupIds []int) error {
-	args := m.Called(id, file, environmentGroupIds)
+func (m *MockPortainerClient) UpdateStack(id int, file string, environmentGroupIds []int, envOverrides []models.StackEnvVar) error {
+	args := m.Called(id, file, environmentGroupIds, envOverrides)
 	return args.Error(0)
 }
 

@@ -277,7 +277,7 @@ func TestUpdateStack(t *testing.T) {
 
 			client := &PortainerClient{cli: mockAPI}
 
-			err := client.UpdateStack(tt.stackID, tt.stackFile, tt.environmentGroupIds)
+			err := client.UpdateStack(tt.stackID, tt.stackFile, tt.environmentGroupIds, nil)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -365,7 +365,7 @@ func TestUpdateStackRegular(t *testing.T) {
 	mockAPI := new(MockPortainerAPI)
 	client := &PortainerClient{cli: mockAPI, serverURL: server.URL, token: "test-token"}
 
-	err := client.UpdateStack(stackID, stackFile, []int{1})
+	err := client.UpdateStack(stackID, stackFile, []int{1}, nil)
 
 	assert.NoError(t, err)
 	assert.True(t, getCalled.Load())
@@ -392,7 +392,7 @@ func TestUpdateStackFallbackToEdge(t *testing.T) {
 
 	client := &PortainerClient{cli: mockAPI, serverURL: server.URL, token: "test-token"}
 
-	err := client.UpdateStack(stackID, stackFile, environmentGroupIds)
+	err := client.UpdateStack(stackID, stackFile, environmentGroupIds, nil)
 
 	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)

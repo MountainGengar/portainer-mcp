@@ -50,8 +50,9 @@ type PortainerClient interface {
 	// Stack methods
 	GetStacks() ([]models.Stack, error)
 	GetStackFile(id int) (string, error)
+	GetStackEnvNames(id int) ([]string, error)
 	CreateStack(name string, file string, environmentGroupIds []int) (int, error)
-	UpdateStack(id int, file string, environmentGroupIds []int) error
+	UpdateStack(id int, file string, environmentGroupIds []int, envOverrides []models.StackEnvVar) error
 
 	// Team methods
 	CreateTeam(name string) (int, error)
