@@ -86,3 +86,26 @@ func TestConvertEdgeStackToStack(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertRegularStackToStack(t *testing.T) {
+	regularStack := RegularStack{
+		ID:           12,
+		Name:         "regular-stack",
+		Type:         2,
+		EndpointId:   5,
+		CreationDate: 1609459200,
+		Status:       1,
+	}
+
+	want := Stack{
+		ID:                  12,
+		Name:                "regular-stack",
+		CreatedAt:           "2021-01-01T00:00:00Z",
+		EnvironmentGroupIds: []int{},
+	}
+
+	got := ConvertRegularStackToStack(&regularStack)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ConvertRegularStackToStack() = %v, want %v", got, want)
+	}
+}
