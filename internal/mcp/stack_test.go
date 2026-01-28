@@ -175,7 +175,7 @@ func TestHandleGetStackEnvNames(t *testing.T) {
 		{
 			name:        "successful env names retrieval",
 			inputID:     1,
-			mockNames:   []string{"DYNU_TOKEN", "TELEGRAM_TOKEN"},
+			mockNames:   []string{"EXAMPLE_TOKEN_A", "EXAMPLE_TOKEN_B"},
 			mockError:   nil,
 			expectError: false,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -418,7 +418,7 @@ func TestHandleUpdateStack(t *testing.T) {
 			inputID:          1,
 			inputFile:        "version: '3'\nservices:\n  web:\n    image: nginx",
 			inputEnvGroupIDs: []int{1, 2},
-			inputOverrides:   []models.StackEnvVar{{Name: "TEST_VAR", Value: "value"}},
+			inputOverrides:   []models.StackEnvVar{{Name: "EXAMPLE_VAR", Value: "value"}},
 			mockError:        nil,
 			expectError:      false,
 			setupParams: func(request *mcp.CallToolRequest) {
@@ -428,7 +428,7 @@ func TestHandleUpdateStack(t *testing.T) {
 					"environmentGroupIds": []any{float64(1), float64(2)},
 					"envOverrides": []any{
 						map[string]any{
-							"name":  "TEST_VAR",
+							"name":  "EXAMPLE_VAR",
 							"value": "value",
 						},
 					},

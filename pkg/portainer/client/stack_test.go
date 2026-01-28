@@ -290,16 +290,16 @@ func TestUpdateStack(t *testing.T) {
 }
 
 func TestUpdateStackRegular(t *testing.T) {
-	stackID := 42
-	endpointID := 21
+	stackID := 12
+	endpointID := 5
 	stackFile := "version: '3'\nservices:\n  web:\n    image: nginx:alpine"
 	expectedEnv := []models.StackEnvVar{
-		{Name: "DYNU_TOKEN", Value: "token"},
-		{Name: "TELEGRAM_TOKEN", Value: "telegram"},
+		{Name: "EXAMPLE_TOKEN_A", Value: "token"},
+		{Name: "EXAMPLE_TOKEN_B", Value: "telegram"},
 	}
 	responseEnv := []stackEnvEntryAlt{
-		{Name: "DYNU_TOKEN", Value: "token"},
-		{Name: "TELEGRAM_TOKEN", Value: "telegram"},
+		{Name: "EXAMPLE_TOKEN_A", Value: "token"},
+		{Name: "EXAMPLE_TOKEN_B", Value: "telegram"},
 	}
 
 	var getCalled atomic.Bool
@@ -311,7 +311,7 @@ func TestUpdateStackRegular(t *testing.T) {
 			return
 		}
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/stacks/42":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/stacks/12":
 			getCalled.Store(true)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(struct {
@@ -331,7 +331,7 @@ func TestUpdateStackRegular(t *testing.T) {
 				Status:     1,
 				Creation:   time.Now().Unix(),
 			})
-		case r.Method == http.MethodPut && r.URL.Path == "/api/stacks/42":
+		case r.Method == http.MethodPut && r.URL.Path == "/api/stacks/12":
 			updateCalled.Store(true)
 			if r.URL.Query().Get("endpointId") != strconv.Itoa(endpointID) {
 				http.Error(w, "bad request", http.StatusBadRequest)
@@ -374,12 +374,12 @@ func TestUpdateStackRegular(t *testing.T) {
 }
 
 func TestUpdateStackFallbackToEdge(t *testing.T) {
-	stackID := 76
+	stackID := 99
 	stackFile := "version: '3'\nservices:\n  web:\n    image: nginx:latest"
 	environmentGroupIds := []int{1, 2}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/api/stacks/76" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/stacks/99" {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
